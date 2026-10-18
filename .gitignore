@@ -1,0 +1,15 @@
+.build/
+dist/
+.DS_Store
+.swiftpm/
+artifacts/
+
+# Local design references and machine-specific secrets
+/og1.png
+/og2.png
+.env
+.env.*
+!.env.example
+*.p12
+*.p8
+*.mobileprovision
