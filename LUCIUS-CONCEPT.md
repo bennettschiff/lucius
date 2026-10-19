@@ -4,6 +4,10 @@ Product concept and initial engineering scope — October 18, 2026.
 
 Status: this document records the product direction. A native local preview is now implemented; see HANDOFF.md for delivered scope, verification, and limitations. No system components were restarted during implementation testing.
 
+## Accepted expansion — October 18, 2026
+
+The user approved broader everyday diagnostics after reviewing Techtool Pro, while excluding disk repair and related storage-recovery tools. Lucius 0.2 adds an on-demand Diagnostics workspace alongside the component scan. It provides system observations, selected-app/file checks, custom coverage and local reports. Hardware stress tests, detailed sensor/SMART support and optional monitoring are future capabilities, not delivered features. Disk repair, recovery, cloning, initialization and wiping are outside the current roadmap. See HANDOFF.md for verified implementation scope.
+
 ## Purpose
 
 Help a capable Mac user understand which background component powers a broken feature, inspect the evidence, and recover that component when a tested repair is available.

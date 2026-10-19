@@ -1,6 +1,6 @@
 # Lucius
 
-A native, on-demand Mac component scanner inspired by Lucius Fox's sonar screen wall.
+A native, on-demand Mac diagnostic app and component scanner inspired by Lucius Fox's sonar screen wall.
 
 Private repository: [bennettschiff/lucius](https://github.com/bennettschiff/lucius).
 
@@ -26,16 +26,33 @@ Requires macOS 14+ and the Swift 6 compiler. No third-party packages or network 
 - Notification Center restart with an explicit explanation, exact identity verification, normal TERM only, a bounded relaunch check, and a separate user confirmation of symptom recovery.
 - Forty local incident summaries under `~/Library/Application Support/Lucius/incidents.json`.
 
-## What the scan means
+## Diagnostics
 
-“Observed” means a matching process was found and measured; it does not mean its UI responds. Three consecutive readings at or above 70% of one core produce “Elevated activity.” This is a heuristic, not a diagnosis. A low-CPU deadlock can go undetected. A missing process may be normal, inaccessible, or unsupported on this OS version. No network, hardware, disk-health, or whole-Mac health test is performed.
+The Diagnostics sidebar offers a quick overview and custom selection of six read-only groups:
+
+- Memory pressure (where exposed), installed memory, swap usage and macOS thermal state.
+- Local volume capacity, with low-space review and shared APFS capacity context.
+- Battery/UPS charge and available battery condition, cycle count and capacity.
+- Active addressed network interfaces, without sending network probes.
+- FileVault, System Integrity Protection and Gatekeeper configuration.
+- OS, processor and Metal GPU inventory.
+
+Inspect up to 10 selected local applications for bundle metadata, code signatures and executable architectures. Check up to 20 selected local JSON/plist files or PNG/JPEG/GIF headers, capped at 4 MiB per file. Image pixels and animation frames are not fully validated. These checks never launch selected apps or rewrite selected files.
+
+Reports distinguish observed, review, unavailable and informational findings. Completed or partial reports can be exported as Markdown; exports can contain device, volume, application and file names. The last report stays in memory until replaced or the app quits; compact run summaries join the 40-entry local history.
+
+System command output and runtimes are capped. Cancellation and normal application quit stop and reap owned utility processes. No disk repair, recovery, cloning, wiping, cache cleanup, stress testing, automatic repair or continuous monitor is included. The expanded roadmap is in `TECHTOOL-FEASIBILITY.md`.
+
+## What the component scan means
+
+“Observed” means a matching process was found and measured; it does not mean its UI responds. Three consecutive readings at or above 70% of one core produce “Elevated activity.” This is a heuristic, not a diagnosis. A low-CPU deadlock can go undetected. A missing process may be normal, inaccessible, or unsupported on this OS version. The component scan itself does not perform network or hardware diagnostics. The separate Diagnostics view reports the limited checks listed above; neither mode certifies whole-Mac health.
 
 Lucius does not inspect message content, capture the screen, stream logs, call AI services, monitor continuously, or run a privileged helper. The contour artwork is decorative; numeric metrics and sparklines use actual observations. Only Notification Center has a restart operation in this preview. Other components are inspection-only.
 
 ## Implementation
 
 - `Sources/CProcess`: bounded libproc reads and identity-checked SIGTERM.
-- `Sources/LuciusCore`: component catalog, CPU deltas, evidence classification, scan and recovery workflows.
+- `Sources/LuciusCore`: component catalog, CPU deltas, diagnostic adapters, bounded utility execution, report models, and scan/recovery workflows.
 - `Sources/Lucius`: SwiftUI scenes, scan state, sonar canvas, details, settings, and local history.
 - `Tests/LuciusCoreTests`: CPU arithmetic, conservative classification, symptom matching, cancellation, and process-control boundaries using a disposable child process.
 

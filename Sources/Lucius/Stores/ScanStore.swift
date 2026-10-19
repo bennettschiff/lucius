@@ -10,9 +10,9 @@ struct Incident: Identifiable, Codable {
 }
 
 enum WorkspaceSection: String, CaseIterable {
-    case scan = "System scan", history = "History", about = "About Lucius"
+    case scan = "Component scan", diagnostics = "Diagnostics", history = "History", about = "About Lucius"
     var symbol: String {
-        switch self { case .scan: "viewfinder"; case .history: "clock.arrow.circlepath"; case .about: "info.circle" }
+        switch self { case .scan: "viewfinder"; case .diagnostics: "waveform.path.ecg"; case .history: "clock.arrow.circlepath"; case .about: "info.circle" }
     }
 }
 
@@ -25,6 +25,13 @@ final class ScanStore {
     var activeComponentIDs: Set<String> = []
     var isScanning = false
     var isRecovering = false
+    var isDiagnosing = false
+    var diagnosticFindings: [DiagnosticFinding] = []
+    var diagnosticReport: DiagnosticReport?
+    var diagnosticPhase = "Choose the checks you need"
+    var diagnosticProgress = 0.0
+    var selectedChecks: Set<DiagnosticCategory> = Set(DiagnosticCategory.systemChecks)
+    var exportNotice: String?
     var progress = 0.0
     var phase = "Ready when you need it"
     var scanComplete = false
@@ -48,7 +55,7 @@ final class ScanStore {
         }
     }
 
-    var isBusy: Bool { isScanning || isRecovering }
+    var isBusy: Bool { isScanning || isRecovering || isDiagnosing }
     var selectedComponent: Component { Component.catalog.first { $0.id == selectedID } ?? Component.catalog[0] }
     var selectedResult: ComponentResult? { results.first { $0.id == selectedID } }
     var elevatedCount: Int { results.filter { $0.observation == .elevated }.count }
@@ -110,6 +117,81 @@ final class ScanStore {
     }
 
     func cancel() { task?.cancel() }
+    func shutdown() async {
+        let running = task
+        running?.cancel()
+        await running?.value
+    }
+
+    func startDiagnostics() {
+        let checks = DiagnosticCategory.systemChecks.filter { selectedChecks.contains($0) }
+        guard !checks.isEmpty else { return }
+        runDiagnostics(scope: checks.map(\.rawValue).joined(separator: ", ")) { update in
+            try await SystemDiagnostics.run(categories: checks) { category, findings in
+                await update(category.rawValue, findings, Double((checks.firstIndex(of: category) ?? 0) + 1) / Double(checks.count))
+            }
+        }
+    }
+
+    func inspectSelected(_ urls: [URL], applications: Bool) {
+        guard !urls.isEmpty else { return }
+        let selected = Array(urls.prefix(applications ? 10 : 20))
+        runDiagnostics(scope: "\(selected.count) selected \(applications ? "applications" : "files")") { update in
+            if applications {
+                try await SelectedDiagnostics.applications(selected) { findings in
+                    await update("Checking selected applications", findings, 0)
+                }
+            } else {
+                try await SelectedDiagnostics.files(selected) { findings in
+                    await update("Checking selected files", findings, 0)
+                }
+            }
+        }
+    }
+
+    private func runDiagnostics(scope: String, operation: @escaping @Sendable (
+        @escaping @Sendable (String, [DiagnosticFinding], Double) async -> Void
+    ) async throws -> Void) {
+        guard !isBusy else { return }
+        section = .diagnostics
+        isDiagnosing = true
+        diagnosticFindings = []
+        diagnosticReport = nil
+        diagnosticProgress = 0
+        diagnosticPhase = "Collecting observations…"
+        exportNotice = nil
+        let started = Date()
+        task = Task { [weak self] in
+            guard let self else { return }
+            var completed = false
+            do {
+                try await operation { [weak self] phase, findings, progress in
+                    await self?.receiveDiagnostics(phase, findings, progress)
+                }
+                try Task.checkCancellation()
+                completed = true
+                diagnosticProgress = 1
+                diagnosticPhase = "Checks complete · no changes made"
+            } catch is CancellationError {
+                diagnosticPhase = "Stopped · partial observations"
+            } catch {
+                diagnosticPhase = "Check stopped · \(error.localizedDescription)"
+            }
+            let report = DiagnosticReport(startedAt: started, completedAt: Date(), scope: scope,
+                                          completed: completed, findings: diagnosticFindings)
+            diagnosticReport = report
+            record(title: completed ? "Diagnostics completed" : "Diagnostics stopped",
+                   detail: "\(scope). \(report.findings.count) observations; \(report.reviewCount) to review; \(report.unavailableCount) unavailable. No repairs performed.")
+            isDiagnosing = false
+            task = nil
+        }
+    }
+
+    private func receiveDiagnostics(_ phase: String, _ findings: [DiagnosticFinding], _ progress: Double) {
+        diagnosticFindings.append(contentsOf: findings)
+        diagnosticPhase = phase
+        diagnosticProgress = progress
+    }
 
     func requestRestart() {
         guard !isBusy, selectedComponent.canRestart, let identity = selectedResult?.identity else { return }

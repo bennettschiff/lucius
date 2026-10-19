@@ -2,6 +2,15 @@ import SwiftUI
 import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    var store: ScanStore?
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let store, store.isBusy else { return .terminateNow }
+        Task {
+            await store.shutdown()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
@@ -20,6 +29,7 @@ struct LuciusApp: App {
     var body: some Scene {
         WindowGroup("Lucius", id: "main") {
             ContentView(store: store)
+                .onAppear { delegate.store = store }
                 .frame(minWidth: 1120, minHeight: 740)
                 .preferredColorScheme(.dark)
         }
@@ -29,7 +39,8 @@ struct LuciusApp: App {
             CommandGroup(replacing: .newItem) { }
             CommandMenu("Scan") {
                 Button("Scan My Mac") { store.startScan() }.keyboardShortcut("r", modifiers: .command).disabled(store.isBusy)
-                Button("Cancel Scan") { store.cancel() }.keyboardShortcut(".", modifiers: .command).disabled(!store.isScanning)
+                Button("Run Diagnostics") { store.startDiagnostics() }.disabled(store.isBusy || store.selectedChecks.isEmpty)
+                Button("Cancel Scan") { store.cancel() }.keyboardShortcut(".", modifiers: .command).disabled(!store.isBusy)
             }
         }
         Settings { SettingsView().preferredColorScheme(.dark) }

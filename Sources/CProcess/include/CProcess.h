@@ -20,4 +20,6 @@ int lc_list_user_pids(int32_t *pids, int capacity);
 int lc_read_process(int32_t pid, LCProcess *result);
 // Revalidates the full identity and current user before SIGTERM. Never escalates.
 int lc_terminate_verified(const LCProcess *expected);
+// Launch a diagnostic command in a new process group. Returns PID or -errno.
+int lc_spawn_diagnostic(const char *path, char *const argv[], int output_fd, int read_fd);
 #endif
