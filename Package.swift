@@ -4,11 +4,13 @@ import PackageDescription
 let package = Package(
     name: "Lucius",
     platforms: [.macOS(.v14)],
-    products: [.executable(name: "Lucius", targets: ["Lucius"])],
+    products: [.executable(name: "Lucius", targets: ["Lucius"]),
+               .executable(name: "LuciusDiagnosticWorker", targets: ["LuciusDiagnosticWorker"])],
     targets: [
         .target(name: "CProcess", publicHeadersPath: "include"),
         .target(name: "LuciusCore", dependencies: ["CProcess"]),
         .executableTarget(name: "Lucius", dependencies: ["LuciusCore"]),
+        .executableTarget(name: "LuciusDiagnosticWorker", dependencies: ["LuciusCore"]),
         .testTarget(name: "LuciusCoreTests", dependencies: ["LuciusCore", "CProcess"])
     ]
 )

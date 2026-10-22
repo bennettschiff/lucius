@@ -39,8 +39,9 @@ struct LuciusApp: App {
             CommandGroup(replacing: .newItem) { }
             CommandMenu("Scan") {
                 Button("Scan My Mac") { store.startScan() }.keyboardShortcut("r", modifiers: .command).disabled(store.isBusy)
-                Button("Run Diagnostics") { store.startDiagnostics() }.disabled(store.isBusy || store.selectedChecks.isEmpty)
-                Button("Cancel Scan") { store.cancel() }.keyboardShortcut(".", modifiers: .command).disabled(!store.isBusy)
+                Button("Run System Overview") { store.startDiagnostics() }.disabled(store.isBusy || store.selectedChecks.isEmpty)
+                Button("Run Hardware Tests") { store.startHardwareTests() }.disabled(store.isBusy || store.selectedTests.isEmpty)
+                Button("Cancel Check") { store.cancel() }.keyboardShortcut(".", modifiers: .command).disabled(!store.isBusy)
             }
         }
         Settings { SettingsView().preferredColorScheme(.dark) }

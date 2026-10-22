@@ -1,5 +1,24 @@
 # Techtool Pro features in Lucius
 
+## October 22 review and implementation update
+
+The 0.2 build was a useful inventory/status overview, not an equivalent to Techtool's active hardware tests. Version 0.3 adds four substantive hardware capabilities alongside it:
+
+| Area | Implemented in Lucius 0.3 | Remaining limit |
+| --- | --- | --- |
+| CPU | Bounded concurrent integer and floating-point known-answer workload | Not every instruction, cache, physical core or sustained burn-in |
+| RAM | Six patterns over 64 MiB; 384 MiB compared, corruption count/offset | Process virtual allocation only; cannot certify all physical RAM |
+| GPU | Four Metal compute passes; all 4,194,304 outputs independently compared | One selected device, 8 MiB of buffers; no all-VRAM/display test |
+| Cooling | 10-second raw temperature/RPM/thermal trace, chart and samples | Read-only, undocumented SMC compatibility; no calibrated sensor fault diagnosis or fan control |
+| Reporting | Last ten detailed hardware reports, partial/not-run outcomes, export and coverage | Overview reports still use the earlier export plus compact-history model |
+
+Techtool's fan test actively varies fan speed. Lucius does not claim this. The development machine reports `Mac15,13`, which Apple identifies as a 15-inch M3 MacBook Air; Apple's product description confirms the fanless design. There is no fan to exercise on this machine. On fan-equipped Macs, readable RPM is only an observation; implementing control needs validated, model-specific SMC write behavior and recovery to automatic control. No such writes are present.
+
+Sources: [Techtool Pro manual](https://www.micromat.com/product_manuals/techtool_pro_21_manual.pdf), [Apple model identification](https://support.apple.com/en-ie/102869), [Apple M3 Air description](https://www.apple.com/newsroom/2024/03/apple-unveils-the-new-13-and-15-inch-macbook-air-with-the-powerful-m3-chip/), [Metal compute](https://developer.apple.com/documentation/metal/performing-calculations-on-a-gpu), and the [MIT-licensed Stats SMC adapter](https://github.com/exelban/stats/blob/master/SMC/smc.swift). The SMC wire layout/read encodings were cross-checked with Stats; attribution is included in `THIRD-PARTY-NOTICES.md` and the app bundle.
+
+Still outside this release: detailed SMART, physical USB/Bluetooth/Thunderbolt tests, active network/DNS probes, Bonjour discovery, complete media decoding, disk benchmarks and background monitoring. Disk repair/recovery/cloning/wiping remain outside the accepted scope. The original feasibility classification below is historical planning, not a statement that those candidates all shipped.
+
+
 Assessment: October 18, 2026. Original feasibility study with an implementation update below.
 
 ## Accepted scope and implementation update

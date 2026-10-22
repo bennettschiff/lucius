@@ -14,7 +14,7 @@ struct DiagnosticCommandResult: Sendable {
 // nonblocking merged pipe so a verbose tool cannot deadlock on a full pipe.
 enum DiagnosticCommand {
     static func run(_ executable: String, _ arguments: [String], seconds: Double = 5,
-                    outputLimit: Int = 262_144) async throws -> DiagnosticCommandResult {
+                    outputLimit: Int = 262_144, onOutput: (@Sendable (Data) async -> Void)? = nil) async throws -> DiagnosticCommandResult {
         try Task.checkCancellation()
         let pipe = Pipe()
         let fd = pipe.fileHandleForReading.fileDescriptor
@@ -29,20 +29,22 @@ enum DiagnosticCommand {
         try? pipe.fileHandleForWriting.close()
         var data = Data()
         var buffer = [UInt8](repeating: 0, count: 8192)
-        let deadline = ContinuousClock.now.advanced(by: .seconds(max(0.05, min(seconds, 15))))
+        let deadline = ContinuousClock.now.advanced(by: .seconds(max(0.05, min(seconds, 30))))
         let limit = max(1, min(outputLimit, 1_048_576))
         var interrupted = false
         var status: Int32 = 0
         var reaped = false
-        func drain() {
+        func drain() async {
             while data.count < limit {
                 let count = Darwin.read(fd, &buffer, min(buffer.count, limit - data.count))
                 if count <= 0 { break }
-                data.append(contentsOf: buffer.prefix(count))
+                let chunk = Data(buffer.prefix(count))
+                data.append(chunk)
+                await onOutput?(chunk)
             }
         }
         while !reaped {
-            drain()
+            await drain()
             let waited = waitpid(pid, &status, WNOHANG)
             if waited == pid || (waited == -1 && errno == ECHILD) { reaped = true; break }
             if Task.isCancelled || ContinuousClock.now >= deadline || data.count >= limit {
@@ -66,7 +68,7 @@ enum DiagnosticCommand {
         if !reaped {
             while waitpid(pid, &status, 0) == -1 && errno == EINTR { }
         }
-        drain()
+        await drain()
         if data.count >= limit { interrupted = true }
         try Task.checkCancellation()
         let signal = status & 0x7f

@@ -10,9 +10,9 @@ struct Incident: Identifiable, Codable {
 }
 
 enum WorkspaceSection: String, CaseIterable {
-    case scan = "Component scan", diagnostics = "Diagnostics", history = "History", about = "About Lucius"
+    case scan = "Component scan", diagnostics = "System overview", hardware = "Hardware tests", history = "History", about = "About Lucius"
     var symbol: String {
-        switch self { case .scan: "viewfinder"; case .diagnostics: "waveform.path.ecg"; case .history: "clock.arrow.circlepath"; case .about: "info.circle" }
+        switch self { case .scan: "viewfinder"; case .diagnostics: "waveform.path.ecg"; case .hardware: "cpu"; case .history: "clock.arrow.circlepath"; case .about: "info.circle" }
     }
 }
 
@@ -26,6 +26,12 @@ final class ScanStore {
     var isScanning = false
     var isRecovering = false
     var isDiagnosing = false
+    var isTesting = false
+    var selectedTests = Set(HardwareTest.allCases)
+    var hardwareResults: [HardwareTestResult] = []
+    var hardwareReports: [HardwareReport] = []
+    var hardwarePhase = "Choose a bounded test to inspect your hardware"
+    var hardwareProgress = 0.0
     var diagnosticFindings: [DiagnosticFinding] = []
     var diagnosticReport: DiagnosticReport?
     var diagnosticPhase = "Choose the checks you need"
@@ -46,16 +52,22 @@ final class ScanStore {
     private var task: Task<Void, Never>?
     private var recoveryIncidentID: UUID?
     private let historyURL: URL
+    private let hardwareURL: URL
 
     init() {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         historyURL = base.appendingPathComponent("Lucius/incidents.json")
+        hardwareURL = base.appendingPathComponent("Lucius/hardware-reports.json")
+        if let data = try? Data(contentsOf: hardwareURL), data.count <= 2_000_000,
+           let saved = try? JSONDecoder().decode([HardwareReport].self, from: data) {
+            hardwareReports = Array(saved.prefix(10))
+        }
         if let data = try? Data(contentsOf: historyURL), let saved = try? JSONDecoder().decode([Incident].self, from: data) {
             incidents = Array(saved.prefix(40))
         }
     }
 
-    var isBusy: Bool { isScanning || isRecovering || isDiagnosing }
+    var isBusy: Bool { isScanning || isRecovering || isDiagnosing || isTesting }
     var selectedComponent: Component { Component.catalog.first { $0.id == selectedID } ?? Component.catalog[0] }
     var selectedResult: ComponentResult? { results.first { $0.id == selectedID } }
     var elevatedCount: Int { results.filter { $0.observation == .elevated }.count }
@@ -191,6 +203,54 @@ final class ScanStore {
         diagnosticFindings.append(contentsOf: findings)
         diagnosticPhase = phase
         diagnosticProgress = progress
+    }
+
+    func startHardwareTests() {
+        guard !isBusy else { return }
+        let tests = HardwareTest.allCases.filter { selectedTests.contains($0) }
+        guard !tests.isEmpty else { return }
+        let bundled = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/LuciusDiagnosticWorker")
+        let sibling = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().appendingPathComponent("LuciusDiagnosticWorker")
+        let worker = Bundle.main.bundleURL.pathExtension == "app" ? bundled : sibling
+        guard FileManager.default.isExecutableFile(atPath: worker.path) else {
+            hardwarePhase = "Diagnostic worker missing. Rebuild the complete app bundle."; return
+        }
+        section = .hardware; isTesting = true; hardwareResults = []; hardwareProgress = 0
+        task = Task { [weak self] in
+            guard let self else { return }
+            for (index, test) in tests.enumerated() {
+                do {
+                    try Task.checkCancellation()
+                    let result = try await HardwareRunner.run(test, worker: worker) { [weak self] event in
+                        await self?.receiveHardware(event, index: index, total: tests.count)
+                    }
+                    hardwareResults.append(result)
+                } catch {
+                    hardwareResults.append(.init(test: test, outcome: error is CancellationError ? .stopped : .unavailable,
+                        summary: error is CancellationError ? "Cancelled. The test worker has exited." : error.localizedDescription,
+                        nextStep: "Run again when ready; incomplete tests have no pass result."))
+                    break
+                }
+            }
+            // Preserve explicit not-run results so a partial run cannot look complete.
+            for test in tests where !hardwareResults.contains(where: { $0.test == test }) {
+                hardwareResults.append(.init(test: test, outcome: .stopped, summary: "Not started because the run was cancelled.", nextStep: "Select this test to run it separately."))
+            }
+            hardwarePhase = Task.isCancelled ? "Stopped · completed results preserved" : "Run finished · review coverage and results below"
+            let report = HardwareReport(requested: tests, results: hardwareResults)
+            hardwareReports.insert(report, at: 0); hardwareReports = Array(hardwareReports.prefix(10))
+            do {
+                try FileManager.default.createDirectory(at: hardwareURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try JSONEncoder().encode(hardwareReports).write(to: hardwareURL, options: .atomic)
+            } catch { persistenceNotice = "Hardware report could not be saved: \(error.localizedDescription)" }
+            record(title: "Hardware test run", detail: hardwareResults.map { "\($0.test.title): \($0.outcome.rawValue)" }.joined(separator: "; "))
+            isTesting = false; task = nil
+        }
+    }
+
+    private func receiveHardware(_ event: HardwareProgress, index: Int, total: Int) {
+        hardwarePhase = event.phase
+        hardwareProgress = (Double(index) + event.fraction) / Double(total)
     }
 
     func requestRestart() {

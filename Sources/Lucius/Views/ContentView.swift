@@ -11,6 +11,7 @@ struct ContentView: View {
                 switch store.section {
                 case .scan: ScanView(store: store)
                 case .diagnostics: DiagnosticsView(store: store)
+                case .hardware: HardwareTestsView(store: store)
                 case .history: HistoryView(store: store)
                 case .about: AboutView()
                 }
@@ -63,7 +64,7 @@ struct SidebarView: View {
                     Spacer()
                     Image(systemName: "lock.shield").font(.system(size: 12))
                 }.foregroundStyle(Theme.dim)
-                Text("Lucius 0.2 · Preview").font(.system(size: 10)).foregroundStyle(Theme.dim.opacity(0.7))
+                Text("Lucius 0.3 · Preview").font(.system(size: 10)).foregroundStyle(Theme.dim.opacity(0.7))
             }
         }.padding(.horizontal, 18).padding(.top, 56).padding(.bottom, 24)
         .background(Theme.surface.opacity(0.35))

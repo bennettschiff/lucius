@@ -27,8 +27,11 @@ export CLANG_MODULE_CACHE_PATH="$ROOT_DIR/.build/clang-cache"
 export SWIFTPM_MODULECACHE_OVERRIDE="$ROOT_DIR/.build/module-cache"
 swift build --disable-sandbox
 BUILD_BINARY="$(swift build --disable-sandbox --show-bin-path)/Lucius"
-mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
+mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources" "$APP_BUNDLE/Contents/Helpers"
 cp "$BUILD_BINARY" "$APP_BINARY"
+cp "$(dirname "$BUILD_BINARY")/LuciusDiagnosticWorker" "$APP_BUNDLE/Contents/Helpers/"
+cp THIRD-PARTY-NOTICES.md "$APP_BUNDLE/Contents/Resources/"
+/usr/bin/codesign --force --sign - "$APP_BUNDLE/Contents/Helpers/LuciusDiagnosticWorker"
 cat > "$APP_BUNDLE/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -38,8 +41,8 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<'PLIST'
 <key>CFBundleName</key><string>Lucius</string>
 <key>CFBundleDisplayName</key><string>Lucius</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.2</string>
-<key>CFBundleVersion</key><string>2</string>
+<key>CFBundleShortVersionString</key><string>0.3</string>
+<key>CFBundleVersion</key><string>3</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>NSHighResolutionCapable</key><true/>
