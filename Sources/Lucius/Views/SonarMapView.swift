@@ -31,7 +31,7 @@ struct SonarMapView: View {
                 }
             }
         }
-        .background(.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 12))
+        .background(Theme.cyan.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.line.opacity(0.6), lineWidth: 1))
         .accessibilityElement(children: .contain)
@@ -74,7 +74,8 @@ private struct ComponentTile: View {
                     .padding(.top, 20).opacity(selected ? 0.85 : 0.4).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Image(systemName: component.symbol).font(.system(size: 17, weight: .light)).foregroundStyle(Theme.cyan)
+                        Image(systemName: component.symbol).font(.system(size: 17, weight: .medium))
+                            .foregroundStyle([Theme.cyan, Theme.violet, Theme.teal, Theme.amber][index % 4])
                         Spacer()
                         Text(String(format: "%02d", index + 1)).font(.system(size: 9, design: .monospaced)).foregroundStyle(Theme.dim)
                     }

@@ -1,6 +1,16 @@
 # Lucius implementation handoff
 
-Updated October 22, 2026. Lucius 0.3 native local preview. Source publication is authorized; public app distribution still needs Developer ID signing and notarization.
+Updated October 28, 2026. Lucius 0.3 native local preview. Source publication is authorized; public app distribution still needs Developer ID signing and notarization.
+
+## October 28 UI refresh
+
+- Light is now the default; Settings offers Light, Dark and Follow system. Native semantic surfaces keep both appearances readable. Colored sidebar icons, component tiles and blue/purple/teal/orange hardware cards replace the monochrome dark treatment.
+- Hardware run panel shows the active workload, real worker phase, per-test ring, overall progress, elapsed time and explicit queued/running/outcome states. Saved summaries carry their report date. No fabricated measurements or progress timers.
+- System overview announces each category before it starts and displays actual completed-category progress. Selected app/file inspection shows activity and observation counts without inventing a percentage.
+- A bottom activity bar stays visible across workspaces with status and cancellation. Stopping waits for the existing owned-worker cleanup before returning to idle.
+- Symbol pulses and progress interpolation honor system Reduce Motion and the app's minimal-motion preference; pulses pause in inactive scenes. Elapsed display updates at most once per second only while a check is running. Existing scan visuals remain on demand.
+- Verification: packaged build/launch; 25 XCTest cases passed, one opt-in hardware smoke skipped, zero failures. Separately ran all four packaged workloads through the UI: CPU/RAM/GPU passed and cooling recorded 11 samples. Checked light/dark settings, minimal-motion setting, cross-workspace status and cancellation from History; worker exited and stopped result was recorded. Idle spot-check after cancellation: 0.1% CPU, about 153 MiB RSS (a snapshot, not a leak test).
+- Source commit and push to `origin/master` authorized on October 28. The UI refresh includes this handoff and its verification evidence. App packaging remains local at `dist/Lucius.app`; no installation elsewhere or public binary release.
 
 ## Delivered in 0.3
 

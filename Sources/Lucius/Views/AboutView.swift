@@ -28,18 +28,24 @@ struct AboutView: View {
 }
 
 struct SettingsView: View {
+    @AppStorage("appearance") private var appearance = "light"
     @AppStorage("minimalMotion") private var minimalMotion = false
     var body: some View {
         Form {
-            Section("Scan appearance") {
+            Section("Appearance") {
+                Picker("Theme", selection: $appearance) {
+                    Text("Light").tag("light")
+                    Text("Dark").tag("dark")
+                    Text("Follow system").tag("system")
+                }
                 Toggle("Use minimal motion", isOn: $minimalMotion)
-                Text("System Reduce Motion is also respected. Animation stops between scans.").font(.caption).foregroundStyle(.secondary)
+                Text("System Reduce Motion is also respected. Activity animations stop between checks.").font(.caption).foregroundStyle(.secondary)
             }
             Section("Privacy and activity") {
                 LabeledContent("Background monitoring", value: "Off · not used")
                 LabeledContent("Network access", value: "Not used")
                 LabeledContent("History retention", value: "40 summaries + 10 hardware reports")
             }
-        }.formStyle(.grouped).frame(width: 460, height: 290)
+        }.formStyle(.grouped).frame(width: 460, height: 340)
     }
 }

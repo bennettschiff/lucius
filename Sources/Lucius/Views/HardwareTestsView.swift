@@ -20,17 +20,20 @@ struct HardwareTestsView: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("HARDWARE TEST LAB").eyebrow()
-                        Text("Put the hardware to work.").font(.system(size: 29, weight: .light))
-                        Text(store.hardwarePhase).font(.system(size: 12)).foregroundStyle(Theme.dim)
+                        Text("Hardware tests").font(.system(size: 29, weight: .bold))
+                        Text(store.isTesting ? "Follow each test as it runs." : store.hardwarePhase).font(.system(size: 12)).foregroundStyle(Theme.dim)
                     }
                     Spacer()
                     if store.isTesting {
-                        Button("Stop tests") { store.cancel() }.buttonStyle(ActionButton())
+                        Button(store.isCancelling ? "Stopping…" : "Stop tests") { store.cancel() }.buttonStyle(ActionButton()).disabled(store.isCancelling)
                     } else {
                         Button("Run selected tests") { reportID = nil; store.startHardwareTests() }
                             .buttonStyle(ActionButton(primary: true)).disabled(store.isBusy || store.selectedTests.isEmpty)
                     }
                 }
+                HardwareRunPanel(store: store, results: results,
+                                 requested: store.isTesting ? store.hardwareRunTests : (displayedReport?.requested ?? HardwareTest.allCases.filter { store.selectedTests.contains($0) }),
+                                 reportDate: store.isTesting ? nil : displayedReport?.date)
                 Label(HardwareEngine.coolingDesign(model: HardwareEngine.model), systemImage: "thermometer.medium")
                     .font(.system(size: 13)).foregroundStyle(Theme.cyan)
                 Text("These tests briefly use CPU, memory and GPU resources. Each workload has a 20-second deadline and stops for elevated memory or serious thermal pressure at its checkpoints. Keep your Mac on a ventilated surface.")
@@ -38,16 +41,27 @@ struct HardwareTestsView: View {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     ForEach(HardwareTest.allCases) { test in
                         VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: test.symbol)
+                                    .font(.system(size: 23, weight: .medium)).foregroundStyle(.white)
+                                    .frame(width: 48, height: 48)
+                                    .background(Theme.color(for: test).gradient, in: RoundedRectangle(cornerRadius: 12))
+                                Spacer()
+                                if store.activeHardwareTest == test {
+                                    Label("Running", systemImage: "waveform.path")
+                                        .font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.color(for: test))
+                                }
+                            }
                             Toggle(isOn: Binding(get: { store.selectedTests.contains(test) }, set: {
                                 if $0 { store.selectedTests.insert(test) } else { store.selectedTests.remove(test) }
-                            })) { Label(test.title, systemImage: test.symbol).font(.system(size: 14, weight: .medium)) }
+                            })) { Text(test.title).font(.system(size: 14, weight: .semibold)) }
                                 .toggleStyle(.checkbox).disabled(store.isBusy)
                             Text(test.method).font(.system(size: 12)).foregroundStyle(Theme.dim).lineSpacing(4)
-                            Text(test.limit).font(.system(size: 10, design: .monospaced)).foregroundStyle(Theme.cyan)
-                        }.padding(20).frame(maxWidth: .infinity, minHeight: 125, alignment: .topLeading).panel()
+                            Text(test.limit).font(.system(size: 10, design: .monospaced)).foregroundStyle(Theme.color(for: test))
+                        }.padding(20).frame(maxWidth: .infinity, minHeight: 170, alignment: .topLeading).panel()
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.color(for: test).opacity(store.activeHardwareTest == test ? 0.8 : 0.16), lineWidth: 1))
                     }
                 }
-                if store.isTesting { ProgressView(value: store.hardwareProgress).tint(Theme.cyan) }
                 if !store.hardwareReports.isEmpty && !store.isTesting {
                     HStack {
                         Picker("Saved run", selection: Binding(get: { displayedReport?.id ?? UUID() }, set: { reportID = $0 })) {
@@ -85,7 +99,7 @@ struct HardwareTestsView: View {
 private struct HardwareResultCard: View {
     let result: HardwareTestResult
     private var color: Color {
-        switch result.outcome { case .failed, .stopped: Theme.amber; case .passed, .observed: Theme.cyan; case .unavailable: Theme.dim }
+        switch result.outcome { case .failed, .stopped: Theme.amber; case .passed: Theme.green; case .observed: Theme.teal; case .unavailable: Theme.dim }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {

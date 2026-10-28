@@ -5,16 +5,19 @@ struct ContentView: View {
     @Bindable var store: ScanStore
     var body: some View {
         HStack(spacing: 0) {
-            SidebarView(store: store).frame(width: 185)
+            SidebarView(store: store).frame(width: 210)
             Rectangle().fill(Theme.line.opacity(0.6)).frame(width: 1)
-            Group {
-                switch store.section {
-                case .scan: ScanView(store: store)
-                case .diagnostics: DiagnosticsView(store: store)
-                case .hardware: HardwareTestsView(store: store)
-                case .history: HistoryView(store: store)
-                case .about: AboutView()
-                }
+            VStack(spacing: 0) {
+                Group {
+                    switch store.section {
+                    case .scan: ScanView(store: store)
+                    case .diagnostics: DiagnosticsView(store: store)
+                    case .hardware: HardwareTestsView(store: store)
+                    case .history: HistoryView(store: store)
+                    case .about: AboutView()
+                    }
+                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                if store.isBusy { ActivityStatusBar(store: store) }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Theme.background)
@@ -34,7 +37,7 @@ struct SidebarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                Image(systemName: "viewfinder.circle").font(.system(size: 29, weight: .ultraLight)).foregroundStyle(Theme.cyan)
+                Image(systemName: "viewfinder.circle.fill").font(.system(size: 29, weight: .medium)).foregroundStyle(Theme.cyan.gradient)
                 Text("LUCIUS").font(.system(size: 18, weight: .medium, design: .rounded)).tracking(3)
             }.padding(.bottom, 8)
             Text("A clearer view of your Mac").font(.system(size: 10)).foregroundStyle(Theme.dim)
@@ -44,6 +47,7 @@ struct SidebarView: View {
                 Button { store.section = section } label: {
                     HStack(spacing: 11) {
                         Image(systemName: section.symbol).frame(width: 17)
+                            .foregroundStyle(Theme.color(for: section))
                         Text(section.rawValue).font(.system(size: 12, weight: .medium))
                         Spacer(minLength: 0)
                     }.foregroundStyle(store.section == section ? Theme.cyan : Theme.dim)
@@ -67,6 +71,6 @@ struct SidebarView: View {
                 Text("Lucius 0.3 · Preview").font(.system(size: 10)).foregroundStyle(Theme.dim.opacity(0.7))
             }
         }.padding(.horizontal, 18).padding(.top, 56).padding(.bottom, 24)
-        .background(Theme.surface.opacity(0.35))
+        .background(.regularMaterial)
     }
 }

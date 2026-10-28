@@ -24,6 +24,7 @@ private typealias StoredState<Value> = SwiftUI.State<Value>
 
 @main
 struct LuciusApp: App {
+    @AppStorage("appearance") private var appearance = "light"
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StoredState private var store = ScanStore()
     var body: some Scene {
@@ -31,7 +32,7 @@ struct LuciusApp: App {
             ContentView(store: store)
                 .onAppear { delegate.store = store }
                 .frame(minWidth: 1120, minHeight: 740)
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
         }
         .defaultSize(width: 1320, height: 850)
         .windowStyle(.hiddenTitleBar)
@@ -44,6 +45,8 @@ struct LuciusApp: App {
                 Button("Cancel Check") { store.cancel() }.keyboardShortcut(".", modifiers: .command).disabled(!store.isBusy)
             }
         }
-        Settings { SettingsView().preferredColorScheme(.dark) }
+        Settings {
+            SettingsView().preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
+        }
     }
 }

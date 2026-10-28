@@ -13,27 +13,20 @@ struct DiagnosticsView: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("SYSTEM DIAGNOSTICS").eyebrow()
-                        Text("A wider view. A clearer next step.").font(.system(size: 29, weight: .light))
+                        Text("A wider view. A clearer next step.").font(.system(size: 29, weight: .semibold))
                         Text(store.diagnosticPhase).font(.system(size: 12)).foregroundStyle(Theme.dim)
                     }
                     Spacer()
                     if store.isDiagnosing {
-                        Button("Cancel") { store.cancel() }.buttonStyle(ActionButton())
+                        Button(store.isCancelling ? "Stopping…" : "Cancel") { store.cancel() }.buttonStyle(ActionButton()).disabled(store.isCancelling)
                     } else {
                         Button { store.startDiagnostics() } label: { Label("Run checks", systemImage: "waveform.path.ecg") }
                             .buttonStyle(ActionButton(primary: true)).disabled(store.isBusy || store.selectedChecks.isEmpty)
                     }
                 }
+                if store.isDiagnosing { DiagnosticsRunPanel(store: store) }
                 checkSelection
                 selectedChecks
-                if store.isDiagnosing {
-                    HStack(spacing: 14) {
-                        ProgressView().controlSize(.small)
-                        Text("Collecting local evidence. Checks stop when finished or cancelled.")
-                            .font(.system(size: 12)).foregroundStyle(Theme.dim)
-                        Spacer()
-                    }
-                }
                 if !store.diagnosticFindings.isEmpty { findings }
                 else if !store.isDiagnosing {
                     VStack(alignment: .leading, spacing: 12) {

@@ -32,6 +32,12 @@ final class ScanStore {
     var hardwareReports: [HardwareReport] = []
     var hardwarePhase = "Choose a bounded test to inspect your hardware"
     var hardwareProgress = 0.0
+    var activeHardwareTest: HardwareTest?
+    var hardwareTestProgress = 0.0
+    var hardwareRunTests: [HardwareTest] = []
+    var activityStartedAt: Date?
+    var isCancelling = false
+    var diagnosticHasProgress = true
     var diagnosticFindings: [DiagnosticFinding] = []
     var diagnosticReport: DiagnosticReport?
     var diagnosticPhase = "Choose the checks you need"
@@ -85,6 +91,8 @@ final class ScanStore {
     func startScan(deep: Bool = false) {
         guard !isBusy else { return }
         isScanning = true
+        activityStartedAt = Date()
+        isCancelling = false
         scanComplete = false
         errorMessage = nil
         recoveryMessage = nil
@@ -117,6 +125,7 @@ final class ScanStore {
                 phase = "Scan could not finish"
             }
             isScanning = false
+            isCancelling = false
             task = nil
         }
     }
@@ -128,7 +137,11 @@ final class ScanStore {
         phase = "Measurement \(update.completedIntervals) of \(update.totalIntervals) · checking activity over time"
     }
 
-    func cancel() { task?.cancel() }
+    func cancel() {
+        guard isBusy else { return }
+        isCancelling = true
+        task?.cancel()
+    }
     func shutdown() async {
         let running = task
         running?.cancel()
@@ -139,8 +152,12 @@ final class ScanStore {
         let checks = DiagnosticCategory.systemChecks.filter { selectedChecks.contains($0) }
         guard !checks.isEmpty else { return }
         runDiagnostics(scope: checks.map(\.rawValue).joined(separator: ", ")) { update in
-            try await SystemDiagnostics.run(categories: checks) { category, findings in
-                await update(category.rawValue, findings, Double((checks.firstIndex(of: category) ?? 0) + 1) / Double(checks.count))
+            for (index, category) in checks.enumerated() {
+                try Task.checkCancellation()
+                await update("Checking \(category.rawValue)…", [], Double(index) / Double(checks.count))
+                try await SystemDiagnostics.run(categories: [category]) { _, findings in
+                    await update("\(category.rawValue) checked", findings, Double(index + 1) / Double(checks.count))
+                }
             }
         }
     }
@@ -148,7 +165,7 @@ final class ScanStore {
     func inspectSelected(_ urls: [URL], applications: Bool) {
         guard !urls.isEmpty else { return }
         let selected = Array(urls.prefix(applications ? 10 : 20))
-        runDiagnostics(scope: "\(selected.count) selected \(applications ? "applications" : "files")") { update in
+        runDiagnostics(scope: "\(selected.count) selected \(applications ? "applications" : "files")", determinate: false) { update in
             if applications {
                 try await SelectedDiagnostics.applications(selected) { findings in
                     await update("Checking selected applications", findings, 0)
@@ -161,12 +178,15 @@ final class ScanStore {
         }
     }
 
-    private func runDiagnostics(scope: String, operation: @escaping @Sendable (
+    private func runDiagnostics(scope: String, determinate: Bool = true, operation: @escaping @Sendable (
         @escaping @Sendable (String, [DiagnosticFinding], Double) async -> Void
     ) async throws -> Void) {
         guard !isBusy else { return }
         section = .diagnostics
         isDiagnosing = true
+        activityStartedAt = Date()
+        isCancelling = false
+        diagnosticHasProgress = determinate
         diagnosticFindings = []
         diagnosticReport = nil
         diagnosticProgress = 0
@@ -195,6 +215,7 @@ final class ScanStore {
             record(title: completed ? "Diagnostics completed" : "Diagnostics stopped",
                    detail: "\(scope). \(report.findings.count) observations; \(report.reviewCount) to review; \(report.unavailableCount) unavailable. No repairs performed.")
             isDiagnosing = false
+            isCancelling = false
             task = nil
         }
     }
@@ -216,15 +237,22 @@ final class ScanStore {
             hardwarePhase = "Diagnostic worker missing. Rebuild the complete app bundle."; return
         }
         section = .hardware; isTesting = true; hardwareResults = []; hardwareProgress = 0
+        activityStartedAt = Date(); isCancelling = false
+        hardwareRunTests = tests; activeHardwareTest = tests.first; hardwareTestProgress = 0
+        hardwarePhase = "Preparing \(tests[0].title)…"
         task = Task { [weak self] in
             guard let self else { return }
             for (index, test) in tests.enumerated() {
                 do {
                     try Task.checkCancellation()
+                    activeHardwareTest = test
+                    hardwareTestProgress = 0
+                    hardwarePhase = "Preparing \(test.title)…"
                     let result = try await HardwareRunner.run(test, worker: worker) { [weak self] event in
                         await self?.receiveHardware(event, index: index, total: tests.count)
                     }
                     hardwareResults.append(result)
+                    hardwareProgress = Double(index + 1) / Double(tests.count)
                 } catch {
                     hardwareResults.append(.init(test: test, outcome: error is CancellationError ? .stopped : .unavailable,
                         summary: error is CancellationError ? "Cancelled. The test worker has exited." : error.localizedDescription,
@@ -244,12 +272,13 @@ final class ScanStore {
                 try JSONEncoder().encode(hardwareReports).write(to: hardwareURL, options: .atomic)
             } catch { persistenceNotice = "Hardware report could not be saved: \(error.localizedDescription)" }
             record(title: "Hardware test run", detail: hardwareResults.map { "\($0.test.title): \($0.outcome.rawValue)" }.joined(separator: "; "))
-            isTesting = false; task = nil
+            isTesting = false; activeHardwareTest = nil; isCancelling = false; task = nil
         }
     }
 
     private func receiveHardware(_ event: HardwareProgress, index: Int, total: Int) {
         hardwarePhase = event.phase
+        hardwareTestProgress = event.fraction
         hardwareProgress = (Double(index) + event.fraction) / Double(total)
     }
 
@@ -263,6 +292,8 @@ final class ScanStore {
         guard !isBusy, let expected = pendingIdentity else { return }
         pendingIdentity = nil
         isRecovering = true
+        activityStartedAt = Date()
+        isCancelling = false
         errorMessage = nil
         recoveryMessage = nil
         awaitingConfirmation = false
@@ -290,6 +321,7 @@ final class ScanStore {
                 record(title: "Restart not verified", detail: error.localizedDescription)
             }
             isRecovering = false
+            isCancelling = false
             task = nil
         }
     }

@@ -13,7 +13,7 @@ struct ScanView: View {
             }
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(store.resultHeadline).font(.system(size: 29, weight: .light)).tracking(-0.7)
+                    Text(store.resultHeadline).font(.system(size: 29, weight: .semibold)).tracking(-0.7)
                     Text(store.phase).font(.system(size: 11)).foregroundStyle(Theme.dim).lineLimit(2)
                 }
                 Spacer(minLength: 12)
