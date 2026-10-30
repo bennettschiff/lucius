@@ -5,10 +5,12 @@ public enum DiagnosticStatus: String, Codable, Sendable {
 }
 
 public enum DiagnosticCategory: String, CaseIterable, Codable, Sendable {
+    case components = "Interface components"
     case resources = "Memory & thermal", storage = "Storage", power = "Power", network = "Network"
     case security = "Security", hardware = "Hardware", applications = "Applications", files = "Files"
     public var symbol: String {
         switch self {
+        case .components: "viewfinder"
         case .resources: "memorychip"
         case .storage: "internaldrive"
         case .power: "battery.100percent"

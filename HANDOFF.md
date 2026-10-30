@@ -1,6 +1,16 @@
 # Lucius implementation handoff
 
-Updated October 28, 2026. Lucius 0.3 native local preview. Source publication is authorized; public app distribution still needs Developer ID signing and notarization.
+Updated October 30, 2026. Lucius 0.4 native local preview. Source commit and push to the private origin/master repository authorized on October 30. App packaging remains local; no public binary release. Public app distribution still needs Developer ID signing and notarization.
+
+## October 30 UX review and guided checkups
+
+- New default Checkup workspace provides quick read-only checks and an explicit extended plan with bounded CPU/RAM/GPU/cooling workloads. Existing component and system tools remain directly accessible; no new repair action or background monitor.
+- `LuciusCore/Checkup.swift` owns a sequential, cancellable runner with injectable step execution, explicit stopped/not-started/unavailable states and durable aggregate reports. Each active worker retains its existing cleanup/deadline guarantees. Report summaries never certify machine health or turn missing evidence into a pass.
+- A native keyboard-navigable sidebar groups Start, Tools and Library; Settings is discoverable. Global status exposes Show run and Stop across workspaces. Command-Shift-R starts a quick checkup.
+- Last ten checkups and ten system reports now persist locally, alongside existing hardware reports and forty activity summaries. History opens full reports. Hardware selection now follows the newly started run, including menu-triggered runs; it no longer falls back to an older selected report on completion.
+- Component labels increased to at least 11 points where previously 8–10; the screen scrolls, the inspector retains its own scrolling, minimum window size is 1040 × 700. Default-window layouts inspected in light and dark; a formal VoiceOver audit and manual minimum-size test remain outstanding.
+- Report summaries appear before optional new-run controls. Review findings appear first. Dates, coverage and partial/unavailable states remain explicit. Global persistence warnings are visible from every workspace.
+- Verification evidence and prioritized future opportunities are in `docs/UX-REVIEW-2026-10-30.md`. Export QA artifact is ignored at `artifacts/Lucius-checkup.md`. No secrets, accounts or external services were added.
 
 ## October 28 UI refresh
 
@@ -30,7 +40,7 @@ The earlier diagnostics workspace was primarily status/inventory. It is now name
 - Six-component process scan and twelve-interval targeted observations, symptom prioritization, sonar visuals, CPU/memory evidence and cancellation.
 - Guarded Notification Center restart only: exact identity/UID/path checks, normal TERM, replacement verification, separate user confirmation of symptom resolution. Other components remain inspection-only.
 - System overview: pressure/swap, thermal, volume capacity, battery/UPS, interfaces, security settings, OS/CPU/GPU inventory. App signature/architecture checks and bounded JSON/plist/image-header inspection.
-- Forty incident summaries. Overview reports still remain in memory until exported; hardware reports have separate durable storage.
+- Forty incident summaries. Overview, checkup and hardware reports each have durable storage (ten reports per type).
 
 ## Verification
 
@@ -46,7 +56,7 @@ The earlier diagnostics workspace was primarily status/inventory. It is now name
 
 `./script/build_and_run.sh` builds and stages `dist/Lucius.app`, including a separately ad-hoc signed helper under `Contents/Helpers`. `--build-only`, `--verify`, `--stop` and interactive debug/log modes are documented in README. Scripts prefer installed full Xcode without changing global xcode-select. No unrelated process should be stopped.
 
-Report storage: `~/Library/Application Support/Lucius/hardware-reports.json` (ten full reports) and `incidents.json` (forty summaries). No uploads or background monitoring. All app-owned workers must exit before task completion; normal quit handles this. An external SIGKILL of the app bypasses application cleanup and is not the supported shutdown path.
+Report storage under `~/Library/Application Support/Lucius/`: `hardware-reports.json`, `diagnostic-reports.json`, `checkup-reports.json` (ten full reports each), and `incidents.json` (forty summaries). No uploads or background monitoring. All app-owned workers must exit before task completion; normal quit handles this. An external SIGKILL of the app bypasses application cleanup and is not the supported shutdown path.
 
 ## Remaining limits and useful next work
 

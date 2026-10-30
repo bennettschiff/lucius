@@ -13,7 +13,7 @@ struct DiagnosticsView: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("SYSTEM DIAGNOSTICS").eyebrow()
-                        Text("A wider view. A clearer next step.").font(.system(size: 29, weight: .semibold))
+                        Text("System overview").font(.system(size: 29, weight: .semibold))
                         Text(store.diagnosticPhase).font(.system(size: 12)).foregroundStyle(Theme.dim)
                     }
                     Spacer()
@@ -27,6 +27,15 @@ struct DiagnosticsView: View {
                 if store.isDiagnosing { DiagnosticsRunPanel(store: store) }
                 checkSelection
                 selectedChecks
+                if !store.isDiagnosing && !store.diagnosticReports.isEmpty {
+                    Picker("Saved overview", selection: Binding(get: { store.diagnosticReport?.startedAt ?? store.diagnosticReports[0].startedAt }, set: { date in
+                        if let report = store.diagnosticReports.first(where: { $0.startedAt == date }) { store.showDiagnosticReport(report) }
+                    })) {
+                        ForEach(store.diagnosticReports, id: \.startedAt) { report in
+                            Text(report.completedAt.formatted(date: .abbreviated, time: .standard)).tag(report.startedAt)
+                        }
+                    }.frame(maxWidth: 420)
+                }
                 if !store.diagnosticFindings.isEmpty { findings }
                 else if !store.isDiagnosing {
                     VStack(alignment: .leading, spacing: 12) {
@@ -85,7 +94,7 @@ struct DiagnosticsView: View {
                 if let report = store.diagnosticReport {
                     VStack(alignment: .trailing, spacing: 5) {
                         Text(report.completed ? "COMPLETE" : "PARTIAL RESULTS").eyebrow()
-                        Text(report.completedAt, style: .time).font(.system(size: 11, design: .monospaced)).foregroundStyle(Theme.dim)
+                        Text(report.completedAt.formatted(date: .abbreviated, time: .shortened)).font(.system(size: 11, design: .monospaced)).foregroundStyle(Theme.dim)
                     }
                 }
             }
@@ -93,6 +102,11 @@ struct DiagnosticsView: View {
                 Text("Coverage: \(report.scope)").font(.system(size: 11)).foregroundStyle(Theme.dim)
             }
             if let notice = store.exportNotice { Text(notice).font(.system(size: 12)).foregroundStyle(Theme.cyan) }
+            let review = store.diagnosticFindings.filter { $0.status == .attention }
+            if !review.isEmpty {
+                Text("REVIEW FIRST").eyebrow()
+                ForEach(review) { finding in DiagnosticCard(finding: finding) }
+            }
             ForEach(DiagnosticCategory.allCases, id: \.self) { category in
                 let items = store.diagnosticFindings.filter { $0.category == category }
                 if !items.isEmpty {
@@ -141,7 +155,7 @@ struct DiagnosticsView: View {
     }
 }
 
-private struct DiagnosticCard: View {
+struct DiagnosticCard: View {
     let finding: DiagnosticFinding
     private var color: Color {
         switch finding.status {

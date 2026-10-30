@@ -10,6 +10,7 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 Group {
                     switch store.section {
+                    case .home: CheckupView(store: store)
                     case .scan: ScanView(store: store)
                     case .diagnostics: DiagnosticsView(store: store)
                     case .hardware: HardwareTestsView(store: store)
@@ -17,6 +18,10 @@ struct ContentView: View {
                     case .about: AboutView()
                     }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                if let notice = store.persistenceNotice {
+                    Label(notice, systemImage: "exclamationmark.triangle").font(.callout)
+                        .foregroundStyle(Theme.amber).padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                }
                 if store.isBusy { ActivityStatusBar(store: store) }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -40,23 +45,26 @@ struct SidebarView: View {
                 Image(systemName: "viewfinder.circle.fill").font(.system(size: 29, weight: .medium)).foregroundStyle(Theme.cyan.gradient)
                 Text("LUCIUS").font(.system(size: 18, weight: .medium, design: .rounded)).tracking(3)
             }.padding(.bottom, 8)
-            Text("A clearer view of your Mac").font(.system(size: 10)).foregroundStyle(Theme.dim)
-                .padding(.bottom, 42)
-            Text("WORKSPACE").eyebrow().padding(.bottom, 16)
-            ForEach(WorkspaceSection.allCases, id: \.self) { section in
-                Button { store.section = section } label: {
-                    HStack(spacing: 11) {
-                        Image(systemName: section.symbol).frame(width: 17)
-                            .foregroundStyle(Theme.color(for: section))
-                        Text(section.rawValue).font(.system(size: 12, weight: .medium))
-                        Spacer(minLength: 0)
-                    }.foregroundStyle(store.section == section ? Theme.cyan : Theme.dim)
-                        .padding(.horizontal, 10).padding(.vertical, 12)
-                        .background(store.section == section ? Theme.cyan.opacity(0.075) : .clear, in: RoundedRectangle(cornerRadius: 7))
-                }.buttonStyle(.plain).padding(.bottom, 5)
-            }
-            Spacer()
+            Text("A clearer view of your Mac").font(.system(size: 12)).foregroundStyle(Theme.dim)
+                .padding(.bottom, 22)
+            List(selection: Binding<WorkspaceSection?>(get: { store.section }, set: { if let section = $0 { store.section = section } })) {
+                Section("Start") {
+                    sidebarRow(.home)
+                }
+                Section("Tools") {
+                    sidebarRow(.scan)
+                    sidebarRow(.diagnostics)
+                    sidebarRow(.hardware)
+                }
+                Section("Library") {
+                    sidebarRow(.history)
+                    sidebarRow(.about)
+                }
+            }.listStyle(.sidebar).scrollContentBackground(.hidden)
+                .padding(.horizontal, -10)
             VStack(alignment: .leading, spacing: 11) {
+                SettingsLink { Label("Settings", systemImage: "gearshape") }
+                    .buttonStyle(.borderless).font(.system(size: 13)).padding(.bottom, 8)
                 HStack(spacing: 7) {
                     Circle().fill(store.isBusy ? Theme.cyan : Theme.dim).frame(width: 5, height: 5)
                     Text(store.isBusy ? "CHECK IN PROGRESS" : "ON DEMAND").eyebrow()
@@ -68,9 +76,23 @@ struct SidebarView: View {
                     Spacer()
                     Image(systemName: "lock.shield").font(.system(size: 12))
                 }.foregroundStyle(Theme.dim)
-                Text("Lucius 0.3 · Preview").font(.system(size: 10)).foregroundStyle(Theme.dim.opacity(0.7))
+                Text("Lucius 0.4 · Preview").font(.system(size: 10)).foregroundStyle(Theme.dim.opacity(0.7))
             }
         }.padding(.horizontal, 18).padding(.top, 56).padding(.bottom, 24)
         .background(.regularMaterial)
+    }
+
+    private func sidebarRow(_ section: WorkspaceSection) -> some View {
+        Label {
+            Text(section.rawValue)
+        } icon: {
+            if store.section == section {
+                Image(systemName: section.symbol).foregroundStyle(.primary)
+            } else {
+                Image(systemName: section.symbol).foregroundStyle(Theme.color(for: section))
+            }
+        }
+            .font(.system(size: 13, weight: .medium))
+            .padding(.vertical, 5).tag(section)
     }
 }

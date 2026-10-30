@@ -16,6 +16,14 @@ The script builds a SwiftPM executable, packages a local `.app`, signs it ad hoc
 
 Requires macOS 14+ and the Swift 6 compiler. No third-party packages or network credentials are needed. This is a local preview, not a Developer ID-signed or notarized public release. The app runs outside App Sandbox so macOS can permit inspection and user-requested process control.
 
+## Guided checkups (0.4)
+
+Lucius opens in **Checkup**. Quick checkup combines the six-component scan with memory/thermal, storage and power observations. Extended checkup adds network interfaces, security settings, hardware inventory and the four bounded hardware workloads. Coverage and resource use appear before starting; no recovery action runs automatically.
+
+Each checkup runs sequentially, shows the active stage, and supports Stop or Command-period from any workspace. Completed stages survive cancellation; unfinished stages are marked Stopped or Not started. Findings needing review appear first; unavailable readings never become a pass. Reports contain detailed observations, workload results and sensor samples, with Markdown export. The last ten checkups persist in `~/Library/Application Support/Lucius/checkup-reports.json`.
+
+The native sidebar groups Checkup, Tools and Library. History reopens saved reports. Command-Shift-R starts a quick checkup; Command-R starts the component scan. Settings remains available from the sidebar and app menu. Light remains the default, with Dark and Follow system options.
+
 ## What works
 
 - Optional symptom field and suggestions; local keyword matching prioritizes components.
@@ -39,7 +47,7 @@ The System overview sidebar offers a quick overview and custom selection of six 
 
 Inspect up to 10 selected local applications for bundle metadata, code signatures and executable architectures. Check up to 20 selected local JSON/plist files or PNG/JPEG/GIF headers, capped at 4 MiB per file. Image pixels and animation frames are not fully validated. These checks never launch selected apps or rewrite selected files.
 
-Reports distinguish observed, review, unavailable and informational findings. Completed or partial reports can be exported as Markdown; exports can contain device, volume, application and file names. The last report stays in memory until replaced or the app quits; compact run summaries join the 40-entry local history.
+Reports distinguish observed, review, unavailable and informational findings. Completed or partial reports can be exported as Markdown; exports can contain device, volume, application and file names. The last ten detailed overviews persist in `~/Library/Application Support/Lucius/diagnostic-reports.json` and reopen from System overview or History; compact run summaries join the 40-entry local history.
 
 System command output and runtimes are capped. Cancellation and normal application quit stop and reap owned utility processes. No disk repair, recovery, cloning, wiping, cache cleanup, automatic repair or continuous monitor is included. Hardware workloads are separate from the read-only overview. The expanded roadmap is in `TECHTOOL-FEASIBILITY.md`.
 

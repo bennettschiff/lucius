@@ -31,15 +31,18 @@ struct LuciusApp: App {
         WindowGroup("Lucius", id: "main") {
             ContentView(store: store)
                 .onAppear { delegate.store = store }
-                .frame(minWidth: 1120, minHeight: 740)
+                .frame(minWidth: 1040, minHeight: 700)
                 .preferredColorScheme(appearance == "system" ? nil : (appearance == "dark" ? .dark : .light))
         }
         .defaultSize(width: 1320, height: 850)
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) { }
-            CommandMenu("Scan") {
-                Button("Scan My Mac") { store.startScan() }.keyboardShortcut("r", modifiers: .command).disabled(store.isBusy)
+            CommandMenu("Checks") {
+                Button("Quick Checkup") { store.startCheckup(.quick) }.keyboardShortcut("r", modifiers: [.command, .shift]).disabled(store.isBusy)
+                Button("Extended Checkup") { store.startCheckup(.extended) }.disabled(store.isBusy)
+                Divider()
+                Button("Scan Interface Components") { store.startScan() }.keyboardShortcut("r", modifiers: .command).disabled(store.isBusy)
                 Button("Run System Overview") { store.startDiagnostics() }.disabled(store.isBusy || store.selectedChecks.isEmpty)
                 Button("Run Hardware Tests") { store.startHardwareTests() }.disabled(store.isBusy || store.selectedTests.isEmpty)
                 Button("Cancel Check") { store.cancel() }.keyboardShortcut(".", modifiers: .command).disabled(!store.isBusy)

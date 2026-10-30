@@ -6,10 +6,9 @@ import LuciusCore
 
 struct HardwareTestsView: View {
     @Bindable var store: ScanStore
-    @State private var reportID: UUID?
     @State private var notice: String?
     private var displayedReport: HardwareReport? {
-        store.hardwareReports.first { $0.id == reportID } ?? store.hardwareReports.first
+        store.hardwareReports.first { $0.id == store.selectedHardwareID } ?? store.hardwareReports.first
     }
     private var results: [HardwareTestResult] {
         store.isTesting ? store.hardwareResults : (displayedReport?.results ?? store.hardwareResults)
@@ -27,7 +26,7 @@ struct HardwareTestsView: View {
                     if store.isTesting {
                         Button(store.isCancelling ? "Stopping…" : "Stop tests") { store.cancel() }.buttonStyle(ActionButton()).disabled(store.isCancelling)
                     } else {
-                        Button("Run selected tests") { reportID = nil; store.startHardwareTests() }
+                        Button("Run selected tests") { store.startHardwareTests() }
                             .buttonStyle(ActionButton(primary: true)).disabled(store.isBusy || store.selectedTests.isEmpty)
                     }
                 }
@@ -64,7 +63,7 @@ struct HardwareTestsView: View {
                 }
                 if !store.hardwareReports.isEmpty && !store.isTesting {
                     HStack {
-                        Picker("Saved run", selection: Binding(get: { displayedReport?.id ?? UUID() }, set: { reportID = $0 })) {
+                        Picker("Saved run", selection: Binding(get: { displayedReport?.id ?? UUID() }, set: { store.selectedHardwareID = $0 })) {
                             ForEach(store.hardwareReports) { report in
                                 Text(report.date.formatted(date: .abbreviated, time: .standard)).tag(report.id)
                             }
@@ -96,7 +95,7 @@ struct HardwareTestsView: View {
     }
 }
 
-private struct HardwareResultCard: View {
+struct HardwareResultCard: View {
     let result: HardwareTestResult
     private var color: Color {
         switch result.outcome { case .failed, .stopped: Theme.amber; case .passed: Theme.green; case .observed: Theme.teal; case .unavailable: Theme.dim }

@@ -77,16 +77,16 @@ private struct ComponentTile: View {
                         Image(systemName: component.symbol).font(.system(size: 17, weight: .medium))
                             .foregroundStyle([Theme.cyan, Theme.violet, Theme.teal, Theme.amber][index % 4])
                         Spacer()
-                        Text(String(format: "%02d", index + 1)).font(.system(size: 9, design: .monospaced)).foregroundStyle(Theme.dim)
+                        Text(String(format: "%02d", index + 1)).font(.system(size: 11, design: .monospaced)).foregroundStyle(Theme.dim)
                     }
                     Text(component.name).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.text).lineLimit(1)
                     Spacer(minLength: 0)
                     HStack {
                         Circle().fill(Theme.color(for: result?.observation)).frame(width: 4, height: 4)
                         Text(scanning ? "Sampling" : result?.observation.rawValue ?? "Ready to inspect")
-                            .font(.system(size: 9)).foregroundStyle(Theme.color(for: result?.observation)).lineLimit(1)
+                            .font(.system(size: 11)).foregroundStyle(Theme.color(for: result?.observation)).lineLimit(1)
                         Spacer(minLength: 0)
-                        if let cpu = result?.averageCPU { Text(cpuText(cpu)).font(.system(size: 10, design: .monospaced)).foregroundStyle(Theme.text) }
+                        if let cpu = result?.averageCPU { Text(cpuText(cpu)).font(.system(size: 11, design: .monospaced)).foregroundStyle(Theme.text) }
                     }
                 }.padding(13)
             }

@@ -10,15 +10,15 @@ struct Incident: Identifiable, Codable {
 }
 
 enum WorkspaceSection: String, CaseIterable {
-    case scan = "Component scan", diagnostics = "System overview", hardware = "Hardware tests", history = "History", about = "About Lucius"
+    case home = "Checkup", scan = "Component scan", diagnostics = "System overview", hardware = "Hardware tests", history = "History", about = "About Lucius"
     var symbol: String {
-        switch self { case .scan: "viewfinder"; case .diagnostics: "waveform.path.ecg"; case .hardware: "cpu"; case .history: "clock.arrow.circlepath"; case .about: "info.circle" }
+        switch self { case .home: "square.grid.2x2"; case .scan: "viewfinder"; case .diagnostics: "waveform.path.ecg"; case .hardware: "cpu"; case .history: "clock.arrow.circlepath"; case .about: "info.circle" }
     }
 }
 
 @MainActor @Observable
 final class ScanStore {
-    var section: WorkspaceSection = .scan
+    var section: WorkspaceSection = .home
     var symptom = ""
     var selectedID = "notifications"
     var results: [ComponentResult] = []
@@ -55,15 +55,35 @@ final class ScanStore {
     var pendingIdentity: ProcessIdentity?
     var incidents: [Incident] = []
     var persistenceNotice: String?
-    private var task: Task<Void, Never>?
+    var isCheckingUp = false
+    var checkupPlan: CheckupPlan = .quick
+    var checkupProgress = 0.0
+    var checkupPhase = "Ready when you are"
+    var checkupStepIndex = 0
+    var checkupResults: [CheckupStepResult] = []
+    var checkupReports: [CheckupReport] = []
+    var selectedCheckupID: UUID?
+    var selectedHardwareID: UUID?
+    var diagnosticReports: [DiagnosticReport] = []
+    var task: Task<Void, Never>?
     private var recoveryIncidentID: UUID?
     private let historyURL: URL
     private let hardwareURL: URL
+    let checkupURL: URL
+    let diagnosticURL: URL
 
     init() {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         historyURL = base.appendingPathComponent("Lucius/incidents.json")
         hardwareURL = base.appendingPathComponent("Lucius/hardware-reports.json")
+        checkupURL = base.appendingPathComponent("Lucius/checkup-reports.json")
+        diagnosticURL = base.appendingPathComponent("Lucius/diagnostic-reports.json")
+        checkupReports = Self.loadReports([CheckupReport].self, from: checkupURL) ?? []
+        diagnosticReports = Self.loadReports([DiagnosticReport].self, from: diagnosticURL) ?? []
+        if let report = diagnosticReports.first {
+            diagnosticReport = report; diagnosticFindings = report.findings
+            diagnosticPhase = "Saved overview · " + report.completedAt.formatted(date: .abbreviated, time: .shortened)
+        }
         if let data = try? Data(contentsOf: hardwareURL), data.count <= 2_000_000,
            let saved = try? JSONDecoder().decode([HardwareReport].self, from: data) {
             hardwareReports = Array(saved.prefix(10))
@@ -73,7 +93,7 @@ final class ScanStore {
         }
     }
 
-    var isBusy: Bool { isScanning || isRecovering || isDiagnosing || isTesting }
+    var isBusy: Bool { isCheckingUp || isScanning || isRecovering || isDiagnosing || isTesting }
     var selectedComponent: Component { Component.catalog.first { $0.id == selectedID } ?? Component.catalog[0] }
     var selectedResult: ComponentResult? { results.first { $0.id == selectedID } }
     var elevatedCount: Int { results.filter { $0.observation == .elevated }.count }
@@ -212,6 +232,9 @@ final class ScanStore {
             let report = DiagnosticReport(startedAt: started, completedAt: Date(), scope: scope,
                                           completed: completed, findings: diagnosticFindings)
             diagnosticReport = report
+            diagnosticReports.insert(report, at: 0)
+            diagnosticReports = Array(diagnosticReports.prefix(10))
+            saveReports(diagnosticReports, to: diagnosticURL)
             record(title: completed ? "Diagnostics completed" : "Diagnostics stopped",
                    detail: "\(scope). \(report.findings.count) observations; \(report.reviewCount) to review; \(report.unavailableCount) unavailable. No repairs performed.")
             isDiagnosing = false
@@ -230,12 +253,11 @@ final class ScanStore {
         guard !isBusy else { return }
         let tests = HardwareTest.allCases.filter { selectedTests.contains($0) }
         guard !tests.isEmpty else { return }
-        let bundled = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/LuciusDiagnosticWorker")
-        let sibling = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().appendingPathComponent("LuciusDiagnosticWorker")
-        let worker = Bundle.main.bundleURL.pathExtension == "app" ? bundled : sibling
+        let worker = workerURL
         guard FileManager.default.isExecutableFile(atPath: worker.path) else {
             hardwarePhase = "Diagnostic worker missing. Rebuild the complete app bundle."; return
         }
+        selectedHardwareID = nil
         section = .hardware; isTesting = true; hardwareResults = []; hardwareProgress = 0
         activityStartedAt = Date(); isCancelling = false
         hardwareRunTests = tests; activeHardwareTest = tests.first; hardwareTestProgress = 0
@@ -262,7 +284,7 @@ final class ScanStore {
             }
             // Preserve explicit not-run results so a partial run cannot look complete.
             for test in tests where !hardwareResults.contains(where: { $0.test == test }) {
-                hardwareResults.append(.init(test: test, outcome: .stopped, summary: "Not started because the run was cancelled.", nextStep: "Select this test to run it separately."))
+                hardwareResults.append(.init(test: test, outcome: .stopped, summary: "Not started because an earlier test stopped the run.", nextStep: "Select this test to run it separately."))
             }
             hardwarePhase = Task.isCancelled ? "Stopped · completed results preserved" : "Run finished · review coverage and results below"
             let report = HardwareReport(requested: tests, results: hardwareResults)
@@ -335,7 +357,7 @@ final class ScanStore {
         }
     }
 
-    @discardableResult private func record(title: String, detail: String) -> UUID {
+    @discardableResult func record(title: String, detail: String) -> UUID {
         let incident = Incident(date: Date(), title: title, detail: detail)
         incidents.insert(incident, at: 0)
         incidents = Array(incidents.prefix(40))

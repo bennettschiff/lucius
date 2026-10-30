@@ -18,7 +18,7 @@ enum Theme {
     }
 
     static func color(for section: WorkspaceSection) -> Color {
-        switch section { case .scan: cyan; case .diagnostics: teal; case .hardware: violet; case .history: amber; case .about: cyan }
+        switch section { case .home: cyan; case .scan: cyan; case .diagnostics: teal; case .hardware: violet; case .history: amber; case .about: cyan }
     }
     static func color(for observation: ComponentObservation?) -> Color {
         switch observation {
@@ -30,7 +30,7 @@ enum Theme {
 }
 
 extension View {
-    func eyebrow() -> some View { font(.system(size: 10, weight: .medium, design: .monospaced)).tracking(1.7).foregroundStyle(Theme.dim) }
+    func eyebrow() -> some View { font(.system(size: 11, weight: .medium, design: .monospaced)).tracking(1.2).foregroundStyle(Theme.dim) }
     func panel() -> some View {
         background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.line, lineWidth: 1))

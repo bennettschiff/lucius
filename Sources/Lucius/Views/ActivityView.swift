@@ -41,11 +41,13 @@ struct ActivityStatusBar: View {
     let store: ScanStore
     private var title: String {
         if store.isCancelling { return "Stopping · waiting for cleanup…" }
+        if store.isCheckingUp { return store.checkupPhase }
         if store.isTesting { return store.hardwarePhase }
         if store.isDiagnosing { return store.diagnosticPhase }
         return store.phase
     }
     private var progress: Double? {
+        if store.isCheckingUp { return store.checkupProgress }
         if store.isTesting { return store.hardwareProgress }
         if store.isDiagnosing { return store.diagnosticHasProgress ? store.diagnosticProgress : nil }
         return store.isScanning ? store.progress : nil
@@ -58,6 +60,9 @@ struct ActivityStatusBar: View {
             Spacer(minLength: 8)
             if let start = store.activityStartedAt { ElapsedTime(start: start) }
             if let progress { RunProgress(value: progress, color: Theme.cyan).frame(width: 100) }
+            if store.section != store.activeSection {
+                Button("Show run") { store.section = store.activeSection }.buttonStyle(.borderless)
+            }
             Button("Stop") { store.cancel() }.disabled(store.isCancelling).buttonStyle(.borderless)
         }
         .font(.system(size: 12)).padding(.horizontal, 24).padding(.vertical, 12)
@@ -74,7 +79,7 @@ struct HardwareRunPanel: View {
     private var active: HardwareTest? { store.isTesting ? store.activeHardwareTest : nil }
     private var accent: Color { active.map { Theme.color(for: $0) } ?? Theme.cyan }
     private var title: String {
-        if store.isCancelling { return "Stopping tests…" }
+        if store.isCancelling && store.isTesting { return "Stopping tests…" }
         if let active { return active.title }
         if results.isEmpty { return "A closer look at your Mac." }
         return results.contains { $0.outcome == .stopped } ? "Run stopped" : "Your results are ready"
