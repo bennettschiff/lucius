@@ -2,11 +2,9 @@
 
 A native, on-demand Mac diagnostic app and component scanner inspired by Lucius Fox's sonar screen wall.
 
-Private repository: [bennettschiff/lucius](https://github.com/bennettschiff/lucius).
-
 ## Run
 
-Open `dist/Lucius.app`, or use Codex's **Run** action. To rebuild:
+Build and open the app (requires macOS 14+ and Swift 6):
 
 ```sh
 ./script/build_and_run.sh
